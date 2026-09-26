@@ -7,7 +7,7 @@ using System.Windows.Forms;
 namespace LangPlayer
 {
     /// <summary>可自訂快速鍵的動作。順序就是設定畫面上的順序。</summary>
-    enum PlayerAction { PlayPause, Back, Forward, Slower, Faster, SpeedReset, Prev, Next, CycleLoop }
+    enum PlayerAction { PlayPause, Back, Forward, Slower, Faster, SpeedReset, Prev, Next, CycleLoop, SlowToggle }
 
     enum LoopMode { None, One, All }
 
@@ -33,6 +33,7 @@ namespace LangPlayer
             { PlayerAction.Prev, "上一首" },
             { PlayerAction.Next, "下一首" },
             { PlayerAction.CycleLoop, "切換循環模式" },
+            { PlayerAction.SlowToggle, "0.5 倍 ⇄ 還原" },
         };
 
         public static Dictionary<PlayerAction, Keys> Defaults()
@@ -48,6 +49,7 @@ namespace LangPlayer
                 { PlayerAction.Prev, Keys.PageUp },
                 { PlayerAction.Next, Keys.PageDown },
                 { PlayerAction.CycleLoop, Keys.L },
+                { PlayerAction.SlowToggle, Keys.S },
             };
         }
 

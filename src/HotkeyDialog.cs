@@ -91,6 +91,7 @@ namespace LangPlayer
             AcceptButton = null;   // Enter 可以被設成快速鍵，不要讓它按下確定
             CancelButton = null;
             ok.Click += (s, e) => { Result = keys; Global = globalBox.Checked; };
+            Theme.Apply(this);
         }
 
         void OnBoxKeyDown(object sender, KeyEventArgs e)

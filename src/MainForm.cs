@@ -22,7 +22,8 @@ namespace LangPlayer
 
         Label nowLabel, timeLabel, speedLabel, hintLabel;
         TrackBar seekBar, volumeBar;
-        Button playButton, backButton, fwdButton;
+        Button playButton, backButton, fwdButton, slowButton;
+        double speedBeforeSlow = 1.0;   // 按 0.5x 之前的速度，再按一次回到這裡
         ComboBox loopBox;
         NumericUpDown skipBox;
         ListBox listBox;
@@ -83,15 +84,6 @@ namespace LangPlayer
             nowLabel = new Label { AutoSize = true, Font = new System.Drawing.Font(Font.FontFamily, 12f, FontStyle.Bold), Margin = new Padding(3, 10, 3, 2), MaximumSize = new Size(580, 0) };
             root.Controls.Add(nowLabel);
 
-            seekBar = new TrackBar { Dock = DockStyle.Fill, TickStyle = TickStyle.None, Maximum = 1000, Height = 32 };
-            seekBar.MouseDown += (s, e) => seeking = true;
-            seekBar.MouseUp += (s, e) => { SeekToBar(); seeking = false; };
-            seekBar.KeyUp += (s, e) => SeekToBar();
-            root.Controls.Add(seekBar);
-
-            timeLabel = new Label { AutoSize = true, Font = new System.Drawing.Font("Consolas", 12f) };
-            root.Controls.Add(timeLabel);
-
             var ctrl = Flow();
             ctrl.Controls.Add(Btn("⏮ 上一首", (s, e) => Do(PlayerAction.Prev)));
             backButton = Btn("⏪ 後退", (s, e) => Do(PlayerAction.Back));
@@ -112,6 +104,8 @@ namespace LangPlayer
             speed.Controls.Add(speedLabel);
             speed.Controls.Add(Btn("快 ＋", (s, e) => Do(PlayerAction.Faster)));
             speed.Controls.Add(Btn("1.0x", (s, e) => Do(PlayerAction.SpeedReset)));
+            slowButton = Btn("0.5x", (s, e) => Do(PlayerAction.SlowToggle));
+            speed.Controls.Add(slowButton);
             root.Controls.Add(speed);
 
             var opts = Flow();
@@ -138,12 +132,28 @@ namespace LangPlayer
             for (int i = 0; i < root.Controls.Count; i++)
                 root.RowStyles.Add(new RowStyle(root.Controls[i] == listBox ? SizeType.Percent : SizeType.AutoSize, 100));
 
-            hintLabel = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(590, 0) };
+            hintLabel = new Label { AutoSize = true, MaximumSize = new Size(590, 0), Margin = new Padding(3, 6, 3, 3), ForeColor = SystemColors.GrayText };
             root.Controls.Add(hintLabel);
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            // 播放進度放最下面：時間在左、拉桿佔滿
+            var seekRow = new TableLayoutPanel { ColumnCount = 2, Dock = DockStyle.Fill, AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
+            seekRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            seekRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            timeLabel = new Label { AutoSize = true, Font = new System.Drawing.Font("Consolas", 12f), Anchor = AnchorStyles.Left, Margin = new Padding(3, 6, 8, 3) };
+            seekBar = new TrackBar { Dock = DockStyle.Fill, TickStyle = TickStyle.None, Maximum = 1000, Height = 32, TabStop = false };
+            seekBar.MouseDown += (s, e) => seeking = true;
+            seekBar.MouseUp += (s, e) => { SeekToBar(); seeking = false; };
+            seekRow.Controls.Add(timeLabel, 0, 0);
+            seekRow.Controls.Add(seekBar, 1, 0);
+            root.Controls.Add(seekRow);
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             // 按鈕不要吃鍵盤焦點，不然 Space 會變成「按下目前焦點的按鈕」
             foreach (Control c in AllControls(root)) if (c is Button) ((Button)c).TabStop = false;
+            Theme.Apply(this);
+            playButton.BackColor = Theme.Accent;
+            playButton.ForeColor = System.Drawing.Color.White;
         }
 
         static IEnumerable<Control> AllControls(Control parent)
@@ -178,6 +188,9 @@ namespace LangPlayer
             backButton.Text = "⏪ 後退 " + settings.SkipSeconds + " 秒";
             fwdButton.Text = "快進 " + settings.SkipSeconds + " 秒 ⏩";
             speedLabel.Text = settings.Speed.ToString("0.0") + "x";
+            slowButton.Text = settings.Speed == 0.5
+                ? "還原 " + (speedBeforeSlow == 0.5 ? 1.0 : speedBeforeSlow).ToString("0.0") + "x"
+                : "0.5x";
             if (loopBox.SelectedIndex != (int)settings.Loop) loopBox.SelectedIndex = (int)settings.Loop;
             nowLabel.Text = current >= 0 ? Path.GetFileNameWithoutExtension(playlist[current]) : "（把 mp3 拖進來，或按「開啟檔案」）";
             var parts = new List<string>();
@@ -304,6 +317,10 @@ namespace LangPlayer
                 case PlayerAction.Slower: SetSpeed(settings.Speed - 0.1); break;
                 case PlayerAction.Faster: SetSpeed(settings.Speed + 0.1); break;
                 case PlayerAction.SpeedReset: SetSpeed(1.0); break;
+                case PlayerAction.SlowToggle:
+                    if (settings.Speed == 0.5) SetSpeed(speedBeforeSlow == 0.5 ? 1.0 : speedBeforeSlow);
+                    else { speedBeforeSlow = settings.Speed; SetSpeed(0.5); }
+                    break;
                 case PlayerAction.Prev:
                     // 播超過 3 秒按上一首＝回到這首開頭（跟一般播放器一樣）
                     if (player.Position.TotalSeconds > 3 || current <= 0) player.Position = TimeSpan.Zero;
