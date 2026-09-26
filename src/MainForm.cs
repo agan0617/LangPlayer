@@ -21,7 +21,7 @@ namespace LangPlayer
         bool playing, seeking;
 
         Label nowLabel, timeLabel, speedLabel, hintLabel;
-        TrackBar seekBar, volumeBar;
+        ClickTrackBar seekBar, volumeBar;
         Button playButton, backButton, fwdButton, slowButton;
         double speedBeforeSlow = 1.0;   // 按 0.5x 之前的速度，再按一次回到這裡
         ComboBox loopBox;
@@ -120,7 +120,7 @@ namespace LangPlayer
             skipBox.ValueChanged += (s, e) => { settings.SkipSeconds = (int)skipBox.Value; RefreshLabels(); };
             opts.Controls.Add(skipBox);
             opts.Controls.Add(Lbl("　音量"));
-            volumeBar = new TrackBar { Minimum = 0, Maximum = 100, Value = settings.Volume, Width = 130, TickStyle = TickStyle.None, TabStop = false };
+            volumeBar = new ClickTrackBar { Minimum = 0, Maximum = 100, Value = settings.Volume, Width = 130, TickStyle = TickStyle.None, TabStop = false };
             volumeBar.ValueChanged += (s, e) => { settings.Volume = volumeBar.Value; player.Volume = settings.Volume / 100.0; };
             opts.Controls.Add(volumeBar);
             root.Controls.Add(opts);
@@ -141,8 +141,9 @@ namespace LangPlayer
             seekRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             seekRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             timeLabel = new Label { AutoSize = true, Font = new System.Drawing.Font("Consolas", 12f), Anchor = AnchorStyles.Left, Margin = new Padding(3, 6, 8, 3) };
-            seekBar = new TrackBar { Dock = DockStyle.Fill, TickStyle = TickStyle.None, Maximum = 1000, Height = 32, TabStop = false };
+            seekBar = new ClickTrackBar { Dock = DockStyle.Fill, TickStyle = TickStyle.None, Maximum = 1000, Height = 32, TabStop = false };
             seekBar.MouseDown += (s, e) => seeking = true;
+            seekBar.Jumped += (s, e) => SeekToBar();   // 點哪跳哪：按下就先跳過去
             seekBar.MouseUp += (s, e) => { SeekToBar(); seeking = false; };
             seekRow.Controls.Add(timeLabel, 0, 0);
             seekRow.Controls.Add(seekBar, 1, 0);
