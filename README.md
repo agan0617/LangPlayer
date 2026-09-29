@@ -2,6 +2,8 @@
 
 聽語言教學 mp3 用的 Windows 11 小程式。單一 `.exe`，用 Windows 內建的 .NET Framework 4.8，**解壓就能跑，不用安裝**。
 
+<img src="docs/screenshot.webp" alt="screenshot">
+
 ## 功能
 
 - **開始／暫停**、上一首／下一首（播超過 3 秒按上一首＝回到這首開頭）
