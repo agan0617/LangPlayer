@@ -21,6 +21,9 @@ namespace LangPlayer
         public LoopMode Loop = LoopMode.None;
         public int Volume = 80;
         public string LastFolder = "";
+        public string LastTrack = "";                     // 上次播的那首（完整路徑），下次開啟時選回它
+        public System.Drawing.Rectangle Window;           // 一般狀態下的位置大小；Width 0＝沒記過
+        public bool Maximized;
 
         public static readonly Dictionary<PlayerAction, string> Names = new Dictionary<PlayerAction, string>
         {
@@ -79,6 +82,14 @@ namespace LangPlayer
                     else if (k == "loop") s.Loop = (LoopMode)int.Parse(v);
                     else if (k == "volume") s.Volume = int.Parse(v);
                     else if (k == "folder") s.LastFolder = v;
+                    else if (k == "track") s.LastTrack = v;
+                    else if (k == "maximized") s.Maximized = v == "1";
+                    else if (k == "window")
+                    {
+                        var n = v.Split(',');
+                        if (n.Length == 4)
+                            s.Window = new System.Drawing.Rectangle(int.Parse(n[0]), int.Parse(n[1]), int.Parse(n[2]), int.Parse(n[3]));
+                    }
                 }
             }
             catch { /* 壞掉就用預設值 */ }
@@ -95,8 +106,38 @@ namespace LangPlayer
             sb.AppendLine("loop=" + (int)Loop);
             sb.AppendLine("volume=" + Volume);
             sb.AppendLine("folder=" + LastFolder);
+            sb.AppendLine("track=" + LastTrack);
+            if (Window.Width > 0)
+                sb.AppendLine("window=" + Window.X + "," + Window.Y + "," + Window.Width + "," + Window.Height);
+            sb.AppendLine("maximized=" + (Maximized ? "1" : "0"));
             try { File.WriteAllText(FilePath, sb.ToString(), Encoding.UTF8); }
             catch { /* 放在唯讀位置就算了，下次用預設 */ }
+        }
+
+        // ---------- 播放清單：exe 旁的 playlist.txt，一行一個完整路徑 ----------
+
+        static string PlaylistPath
+        {
+            get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "playlist.txt"); }
+        }
+
+        public static List<string> LoadPlaylist()
+        {
+            var list = new List<string>();
+            try
+            {
+                if (File.Exists(PlaylistPath))
+                    foreach (var line in File.ReadAllLines(PlaylistPath, Encoding.UTF8))
+                        if (line.Trim().Length > 0) list.Add(line.Trim());
+            }
+            catch { /* 讀不到就當空清單 */ }
+            return list;
+        }
+
+        public static void SavePlaylist(IEnumerable<string> files)
+        {
+            try { File.WriteAllLines(PlaylistPath, files, Encoding.UTF8); }
+            catch { /* 放在唯讀位置就算了 */ }
         }
 
         public static string KeyText(Keys k)

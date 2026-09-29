@@ -61,10 +61,48 @@ namespace LangPlayer
 
             DragEnter += (s, e) => { if (e.Data.GetDataPresent(DataFormats.FileDrop)) e.Effect = DragDropEffects.Copy; };
             DragDrop += (s, e) => AddPaths((string[])e.Data.GetData(DataFormats.FileDrop), true);
-            FormClosing += (s, e) => { settings.Save(); UnregisterGlobal(); player.Close(); };
+            FormClosing += (s, e) => { SaveState(); settings.Save(); UnregisterGlobal(); player.Close(); };
+            Load += (s, e) => RestoreWindow();   // 等 DPI 縮放做完再套，不然大小會被再放大一次
             Shown += (s, e) => RegisterGlobal();
+            RestorePlaylist();
             RefreshLabels();
             UpdateTime();
+        }
+
+        // ---------- 關掉再開：視窗與清單維持上次的樣子 ----------
+
+        void RestoreWindow()
+        {
+            var r = settings.Window;
+            if (r.Width <= 0 || r.Height <= 0) return;
+            // 上次的位置得還看得到（例如拔掉外接螢幕後就不行），否則維持置中
+            bool visible = Screen.AllScreens.Any(sc =>
+            {
+                var i = Rectangle.Intersect(sc.WorkingArea, r);
+                return i.Width >= 100 && i.Height >= 50;
+            });
+            if (!visible) return;
+            StartPosition = FormStartPosition.Manual;
+            Bounds = r;
+            if (settings.Maximized) WindowState = FormWindowState.Maximized;
+        }
+
+        /// <summary>載回上次的清單（找不到的檔略過），選回上次那首、停在開頭，按開始才播。</summary>
+        void RestorePlaylist()
+        {
+            playlist.AddRange(Settings.LoadPlaylist().Where(f => File.Exists(f) && IsAudio(f)));
+            current = playlist.FindIndex(f => string.Equals(f, settings.LastTrack, StringComparison.OrdinalIgnoreCase));
+            if (current < 0 && playlist.Count > 0) current = 0;
+            RefreshList();
+            if (current >= 0) listBox.SelectedIndex = current;
+        }
+
+        void SaveState()
+        {
+            settings.Maximized = WindowState == FormWindowState.Maximized;
+            settings.Window = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
+            settings.LastTrack = current >= 0 ? playlist[current] : "";
+            Settings.SavePlaylist(playlist);
         }
 
         // ---------- 介面 ----------
@@ -310,6 +348,7 @@ namespace LangPlayer
             {
                 case PlayerAction.PlayPause:
                     if (current < 0) { if (playlist.Count > 0) PlayIndex(0); else OpenFiles(); return; }
+                    if (player.Source == null) { PlayIndex(current); return; }   // 剛開啟、選回上次那首但還沒載入
                     if (playing) { player.Pause(); playing = false; }
                     else { player.Play(); ApplySpeed(); playing = true; }
                     break;
@@ -341,7 +380,7 @@ namespace LangPlayer
 
         void Skip(int seconds)
         {
-            if (current < 0) return;
+            if (current < 0 || player.Source == null) return;
             var p = player.Position + TimeSpan.FromSeconds(seconds);
             if (p < TimeSpan.Zero) p = TimeSpan.Zero;
             if (player.NaturalDuration.HasTimeSpan && p > player.NaturalDuration.TimeSpan)
